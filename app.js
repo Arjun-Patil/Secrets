@@ -32,7 +32,8 @@ mongoose.set("useCreateIndex", true);
 
 const userSchema = new mongoose.Schema({
   email: String,
-  password: String
+  password: String,
+  googleId:String
 });
 
 userSchema.plugin(passportLocalMangoose);
@@ -79,7 +80,7 @@ app.get("/auth/google/secrets",
     passport.authenticate('google', { failureRedirect: '/login' }),
     function(req, res) {
       // Successful authentication, redirect home.
-      res.redirect('/');
+      res.redirect('/secrets');
 });
 
 
@@ -117,7 +118,7 @@ app.post("/login", function(req,res){
 
   const newUser = new User({
     username: req.body.username,
-    password: req.body.password
+    password: req.body.password,
   });
 
   req.login(newUser, function(err){
