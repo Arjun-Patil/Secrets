@@ -7,6 +7,8 @@ const mongoose  = require("mongoose");
 const session = require("express-session");
 const passport = require("passport");
 const passportLocalMangoose = require("passport-local-mongoose");
+const GoogleStrategy = require('passport-google-oauth20').Strategy;
+const findOrCreate = require("mongoose-findorcreate");
 const app = express();
 
 
@@ -34,12 +36,34 @@ const userSchema = new mongoose.Schema({
 });
 
 userSchema.plugin(passportLocalMangoose);
+userSchema.plugin(findOrCreate);
 
 const User = new mongoose.model("User",userSchema);
 
 passport.use(User.createStrategy());
-passport.serializeUser(User.serializeUser());
-passport.deserializeUser(User.deserializeUser());
+passport.serializeUser(function(user, done) {
+  done(null, user.id);
+});
+
+passport.deserializeUser(function(id, done) {
+  User.findById(id, function(err, user) {
+    done(err, user);
+  });
+});
+
+passport.use(new GoogleStrategy({
+    clientID: process.env.CLIENT_ID,
+    clientSecret: process.env.CLIENT_SECRET,
+    callbackURL: "http://localhost:3000/auth/google/secrets",
+    userProfileURL: "https://www.googleapis.com/oauth2/v3/userinfo"
+  },
+  function(accessToken, refreshToken, profile, cb) {
+    console.log(profile);
+    User.findOrCreate({ googleId: profile.id }, function (err, user) {
+      return cb(err, user);
+    });
+  }
+));
 
 app.get("/",function(req,res){
   res.render("home");
@@ -47,6 +71,18 @@ app.get("/",function(req,res){
 app.get("/login",function(req,res){
   res.render("login");
 });
+
+app.get("/auth/google",
+  passport.authenticate('google', { scope: ["profile"] }));
+
+app.get("/auth/google/secrets",
+    passport.authenticate('google', { failureRedirect: '/login' }),
+    function(req, res) {
+      // Successful authentication, redirect home.
+      res.redirect('/');
+});
+
+
 app.get("/register",function(req,res){
   res.render("register");
 });
